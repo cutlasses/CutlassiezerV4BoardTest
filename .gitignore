@@ -6,3 +6,4 @@ Core/.DS_Store
 *.list
 *.bin
 *.map
+Debug/CutlassiezerV4BoardTest.elf
