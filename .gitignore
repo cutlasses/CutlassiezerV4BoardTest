@@ -1,0 +1,8 @@
+
+Core/.DS_Store
+*.d
+*.o
+*.su
+*.list
+*.bin
+*.map
