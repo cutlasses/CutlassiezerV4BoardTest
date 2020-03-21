@@ -63,14 +63,27 @@ void initialise_sound_engine()
 	DEBUG_TEXT("initialise_sound_engine()\n");
 
 	// fill transmit buffer with sine wave
+	/*
+	const constexpr float buffer_time = (1.0f / SAMPLE_RATE) * AUDIO_BLOCK_SIZE * 2;
+	const constexpr float buffer_freq = 1.0f / buffer_time;
+	sine_osc.set_frequency(buffer_freq);
 
-	sine_osc.set_frequency(441.0f);
+	for( int16_t si = 0; si < TRANSMIT_BUFFER_SIZE; si+=2 )
+	{
+		const int16_t sample	= sine_osc.next_sample();
+		transmit_buffer[si]		= sample;
+		transmit_buffer[si+1]	= sample;
+	}
+	*/
+
 
 	// reset the transmit buffer
 	for( int16_t& sample : transmit_buffer )
 	{
 		sample = 0;
 	}
+
+	sine_osc.set_frequency(441.0f);
 
 	// start off DMA
 	if( HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockB1, (uint8_t*)transmit_buffer, TRANSMIT_BUFFER_SIZE ) )
@@ -89,7 +102,7 @@ void initialise_sound_engine()
 
 	WM8731::initialise();
 
-	DEBUG_TEXT("initialise_sound_engine() COMPLETE\n");
+	DEBUG_TEXT("initialise_sound_engine() COMPLETED\n");
 }
 
 void sound_engine_loop()
