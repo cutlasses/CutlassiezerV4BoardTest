@@ -4,6 +4,8 @@
 #include "SoundEngine.h"
 #include "WM8731.h"
 
+#define FILL_AUDIO_IN_INTERRUPT
+
 const constexpr uint16_t SAMPLE_RATE(44100);
 const constexpr uint16_t AUDIO_BLOCK_SIZE(128);
 const constexpr uint16_t NUM_TRANSMIT_BLOCKS(2);	// double buffered
@@ -19,6 +21,7 @@ Oscillator<int16_t, SAMPLE_RATE> sine_osc;
 // TRANSMIT - transfer half complete
 void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
+#ifdef FILL_AUDIO_IN_INTERRUPT
 	// start writing from the beginning
 	const int16_t start_write_block = 0;
 	const int16_t end_write_block = TRANSMIT_BUFFER_SIZE / 2;
@@ -29,11 +32,13 @@ void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 		transmit_buffer[si]		= sample;
 		transmit_buffer[si+1]	= sample;
 	}
+#endif
 }
 
 // TRANSMIT - transfer complete
 void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai)
 {
+#ifdef FILL_AUDIO_IN_INTERRUPT
 	// start writing from midpoint
 	const int16_t start_write_block = TRANSMIT_BUFFER_SIZE / 2;
 	const int16_t end_write_block = TRANSMIT_BUFFER_SIZE;
@@ -44,6 +49,7 @@ void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai)
 		transmit_buffer[si]		= sample;
 		transmit_buffer[si+1]	= sample;
 	}
+#endif
 }
 
 // RECEIVE - receive half complete
@@ -62,8 +68,8 @@ void initialise_sound_engine()
 {
 	DEBUG_TEXT("initialise_sound_engine()\n");
 
+#ifndef FILL_AUDIO_IN_INTERRUPT
 	// fill transmit buffer with sine wave
-	/*
 	const constexpr float buffer_time = (1.0f / SAMPLE_RATE) * AUDIO_BLOCK_SIZE * 2;
 	const constexpr float buffer_freq = 1.0f / buffer_time;
 	sine_osc.set_frequency(buffer_freq);
@@ -74,9 +80,7 @@ void initialise_sound_engine()
 		transmit_buffer[si]		= sample;
 		transmit_buffer[si+1]	= sample;
 	}
-	*/
-
-
+#else
 	// reset the transmit buffer
 	for( int16_t& sample : transmit_buffer )
 	{
@@ -84,6 +88,7 @@ void initialise_sound_engine()
 	}
 
 	sine_osc.set_frequency(441.0f);
+#endif
 
 	// start off DMA
 	if( HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockB1, (uint8_t*)transmit_buffer, TRANSMIT_BUFFER_SIZE ) )
