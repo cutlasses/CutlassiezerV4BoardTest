@@ -7,3 +7,5 @@ Core/.DS_Store
 *.bin
 *.map
 Debug/CutlassiezerV4BoardTest.elf
+Debug/makefile
+.settings/language.settings.xml
