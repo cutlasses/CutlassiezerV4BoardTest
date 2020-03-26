@@ -55,8 +55,8 @@ CutlassiezerV4BoardTest.bin \
 all: CutlassiezerV4BoardTest.elf secondary-outputs
 
 # Tool invocations
-CutlassiezerV4BoardTest.elf: $(OBJS) $(USER_OBJS) /Users/scottpitkethly/GitHub/CutlassiezerV4BoardTest/STM32F446RCTX_FLASH.ld
-	arm-none-eabi-g++ -o "CutlassiezerV4BoardTest.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/scottpitkethly/GitHub/CutlassiezerV4BoardTest/STM32F446RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CutlassiezerV4BoardTest.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+CutlassiezerV4BoardTest.elf: $(OBJS) $(USER_OBJS) /Users/Scott/GitHub/CutlassiezerV4BoardTest/STM32F446RCTX_FLASH.ld
+	arm-none-eabi-g++ -o "CutlassiezerV4BoardTest.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/Scott/GitHub/CutlassiezerV4BoardTest/STM32F446RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CutlassiezerV4BoardTest.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
