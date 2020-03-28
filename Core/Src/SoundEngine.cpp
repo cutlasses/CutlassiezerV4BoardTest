@@ -14,83 +14,98 @@ const constexpr uint16_t TRANSMIT_BUFFER_SIZE(AUDIO_BLOCK_SIZE*NUM_TRANSMIT_BLOC
 const constexpr uint16_t RECEIVE_BUFFER_SIZE(AUDIO_BLOCK_SIZE*NUM_TRANSMIT_BLOCKS*2);
 const constexpr uint16_t HALF_TRANSMIT_BUFFER_SIZE(TRANSMIT_BUFFER_SIZE/2);
 
-int16_t transmit_buffer[TRANSMIT_BUFFER_SIZE];
-int16_t receive_buffer[RECEIVE_BUFFER_SIZE];
+int16_t g_transmit_buffer[TRANSMIT_BUFFER_SIZE];
+int16_t g_receive_buffer[RECEIVE_BUFFER_SIZE];
 
-volatile int16_t audio_buffer_left[AUDIO_BLOCK_SIZE];
-volatile bool receive_complete = false;
+int16_t g_audio_buffer_left[AUDIO_BLOCK_SIZE];
+int16_t g_audio_buffer_right[AUDIO_BLOCK_SIZE];
+volatile bool in_interrupt = false;
 
-void audio_stream_receive( const int16_t* buffer, size_t size )
+void i2s_receive( const int16_t* receive_buffer, int16_t* audio_left, int16_t* audio_right, size_t size )
 {
-	receive_complete = false;
-
 	// strip the left channel only
-	for( size_t i = 0; i < size; i+=2 )
+	size_t bi = 0;
+	for( size_t i = 0; i < size; ++i )
 	{
-		audio_buffer_left[i] = buffer[i];
+		audio_left[i]	= receive_buffer[bi++];
+		audio_right[i]	= receive_buffer[bi++];
 	}
+}
+
+void is2_transmit( int16_t* transmit_buffer, const int16_t* audio_left, const int16_t* audio_right, size_t size )
+{
+	// interleave left and right (currently left only)
+	size_t bi = 0;
+	for( size_t i = 0; i < size; ++i )
+	{
+		transmit_buffer[bi++]	= audio_left[i];
+		transmit_buffer[bi++]	= audio_right[i];
+	}
+}
+
+void audio_interrupt_update( int16_t buffer_index )
+{
+	ASSERT_MSG( !in_interrupt, "Receive interrupt interrupted?" );
+
+	in_interrupt = true;
+
+	// start reading/writing from the beginning
+	i2s_receive( &(g_receive_buffer[buffer_index]), &(g_audio_buffer_left[0]), &(g_audio_buffer_right[0]), AUDIO_BLOCK_SIZE );
 
 	// process audio
 
-	receive_complete = true;
-}
+	is2_transmit( &(g_transmit_buffer[buffer_index]), &(g_audio_buffer_left[0]), &(g_audio_buffer_right[0]), AUDIO_BLOCK_SIZE );
 
-void audio_stream_transmit( int16_t* buffer, size_t size )
-{
-	// interleave left and right (currently left only)
-	ASSERT_MSG( receive_complete, "Receive interrupt interrupted?" );
-
-	for( size_t i = 0; i < size; i+=2 )
-	{
-		buffer[i] = audio_buffer_left[i];
-		buffer[i+1] = 0;
-	}
+	in_interrupt = false;
 }
 
 // TRANSMIT - transfer half complete
 void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
-	// start writing from the beginning
-	audio_stream_transmit( &(transmit_buffer[0]), HALF_TRANSMIT_BUFFER_SIZE );
+	// start processing from the beginning
+	audio_interrupt_update( 0 );
 }
 
 // TRANSMIT - transfer complete
 void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai)
 {
-	// start writing from midpoint
-	audio_stream_transmit( &(transmit_buffer[HALF_TRANSMIT_BUFFER_SIZE]), HALF_TRANSMIT_BUFFER_SIZE );
-
+	// start processing from the midpoint
+	audio_interrupt_update( HALF_TRANSMIT_BUFFER_SIZE );
 }
 
+/*
 // RECEIVE - receive half complete
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
-	audio_stream_receive( &(receive_buffer[0]), HALF_TRANSMIT_BUFFER_SIZE );
+	receive_complete = true;
 }
 
 // RECEIVE - receive complete
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hsai)
 {
-	audio_stream_receive( &(receive_buffer[HALF_TRANSMIT_BUFFER_SIZE]), HALF_TRANSMIT_BUFFER_SIZE );
+	receive_complete = true;
 }
+*/
 
 void initialise_sound_engine()
 {
 	DEBUG_TEXT("initialise_sound_engine()\n");
 
 	// reset the transmit buffer
-	memset( transmit_buffer, 0, TRANSMIT_BUFFER_SIZE );
-	memset( const_cast<int16_t*>(audio_buffer_left), 0, AUDIO_BLOCK_SIZE );
+	memset( g_receive_buffer, 0, RECEIVE_BUFFER_SIZE );
+	memset( g_transmit_buffer, 0, TRANSMIT_BUFFER_SIZE );
+	memset( g_audio_buffer_left, 0, AUDIO_BLOCK_SIZE );
+	memset( g_audio_buffer_right, 0, AUDIO_BLOCK_SIZE );
 
 
 	// start off DMA
-	if( HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockB1, (uint8_t*)transmit_buffer, TRANSMIT_BUFFER_SIZE ) )
+	if( HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockB1, (uint8_t*)g_transmit_buffer, TRANSMIT_BUFFER_SIZE ) )
 	{
 		DEBUG_TEXT("HAL_SAI_Transmit_DMA fail\r\n");
 		//Error_Handler();
 	}
 
-	if (HAL_OK != HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t*)receive_buffer, RECEIVE_BUFFER_SIZE ) )
+	if (HAL_OK != HAL_SAI_Receive_DMA(&hsai_BlockA1, (uint8_t*)g_receive_buffer, RECEIVE_BUFFER_SIZE ) )
 	{
 		DEBUG_TEXT("HAL_SAI_Receive_DMA fail\r\n");
 		//Error_Handler();
@@ -99,6 +114,8 @@ void initialise_sound_engine()
 	HAL_Delay(100);
 
 	WM8731::initialise();
+	WM8731::input_select(WM8731::INPUT_TYPE::LINE_IN);
+	WM8731::set_input_gain(1.0f);
 
 	DEBUG_TEXT("initialise_sound_engine() COMPLETED\n");
 }
