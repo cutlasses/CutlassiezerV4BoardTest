@@ -115,7 +115,7 @@ void initialise_sound_engine()
 
 	WM8731::initialise();
 	WM8731::input_select(WM8731::INPUT_TYPE::LINE_IN);
-	WM8731::set_input_gain(1.0f);
+	WM8731::set_input_gain(0.7f);
 
 	DEBUG_TEXT("initialise_sound_engine() COMPLETED\n");
 }
