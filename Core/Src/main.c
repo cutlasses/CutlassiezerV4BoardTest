@@ -116,19 +116,34 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  static int colour_pin[3] = { GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_8 };
+	  static int colour = 0;
 	  static int led_on = 1;
+
+	  led_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET;
 
 	  if( led_on )
 	  {
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_SET);
 	  }
 	  else
 	  {
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_RESET);
 	  }
-	  led_on = !led_on;
+
+	  if( !led_on )
+	  {
+		  colour = (colour + 1) % 3;
+	  }
+	  //led_on = !led_on;
 
 	  // Get ADC value
+	  ADC_ChannelConfTypeDef adc_config = {0};
+	  adc_config.Channel = ADC_CHANNEL_14;
+	  adc_config.Rank = 1;
+	  adc_config.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	  HAL_ADC_ConfigChannel(&hadc1, &adc_config);
+
 	  HAL_ADC_Start(&hadc1);
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  int val = HAL_ADC_GetValue(&hadc1);
@@ -403,7 +418,23 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PA8 PA10 PA11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB8 */
   GPIO_InitStruct.Pin = GPIO_PIN_8;
