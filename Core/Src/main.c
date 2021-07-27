@@ -55,7 +55,7 @@ DMA_HandleTypeDef hdma_sai1_b;
 UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
-
+static volatile int colour_index = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,6 +72,14 @@ static void MX_ADC1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if( GPIO_Pin == GPIO_PIN_4 )
+	{
+		colour_index = (colour_index + 1 ) % 3;
+	}
+}
 
 void swap_from_adc_to_gpio_interrupt( GPIO_TypeDef* bank, uint32_t pin_mask, IRQn_Type interrupt )
 {
@@ -138,6 +146,8 @@ int main(void)
   MX_USART6_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  swap_from_adc_to_gpio_interrupt(GPIOC, GPIO_PIN_4, EXTI4_IRQn);
+
   initialise_sound_engine();
   /* USER CODE END 2 */
 
@@ -147,11 +157,10 @@ int main(void)
   while (1)
   {
 	  static int colour_pin[3] = { GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_8 };
-	  static int colour = 0;
 
 	  for( int i = 0; i < 3; ++i )
 	  {
-		  if( i == colour )
+		  if( i == colour_index )
 		  {
 			  HAL_GPIO_WritePin(GPIOA, colour_pin[i], GPIO_PIN_SET);
 		  }
@@ -161,6 +170,7 @@ int main(void)
 		  }
 	  }
 
+	  /*
 	  // Get ADC value
 	  ADC_ChannelConfTypeDef adc_config = {0};
 	  adc_config.Channel = ADC_CHANNEL_14;
@@ -187,6 +197,7 @@ int main(void)
 		  colour = (colour + 1) % 3;
 		  half_cycle = 0;
 	  }
+	  */
 
 	  HAL_Delay(1);
 
