@@ -73,6 +73,35 @@ static void MX_ADC1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void swap_from_adc_to_gpio_interrupt( GPIO_TypeDef* bank, uint32_t pin_mask, IRQn_Type interrupt )
+{
+	HAL_GPIO_DeInit(bank, pin_mask);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin		= pin_mask;
+    GPIO_InitStruct.Mode	= GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull	= GPIO_NOPULL;
+    HAL_GPIO_Init(bank, &GPIO_InitStruct);
+
+    HAL_NVIC_SetPriority(interrupt, 0, 0);
+    HAL_NVIC_EnableIRQ(interrupt);
+}
+
+void swap_from_gpio_to_adc_interrupt( GPIO_TypeDef* bank, uint32_t pin_mask, IRQn_Type interrupt )
+{
+	HAL_GPIO_DeInit(bank, pin_mask);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin		= pin_mask;
+    GPIO_InitStruct.Mode	= GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Pull	= GPIO_NOPULL;
+    HAL_GPIO_Init(bank, &GPIO_InitStruct);
+
+    HAL_NVIC_DisableIRQ(interrupt);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -114,28 +143,23 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
 	  static int colour_pin[3] = { GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_8 };
 	  static int colour = 0;
-	  static int led_on = 1;
 
-	  led_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET;
-
-	  if( led_on )
+	  for( int i = 0; i < 3; ++i )
 	  {
-		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_SET);
+		  if( i == colour )
+		  {
+			  HAL_GPIO_WritePin(GPIOA, colour_pin[i], GPIO_PIN_SET);
+		  }
+		  else
+		  {
+			  HAL_GPIO_WritePin(GPIOA, colour_pin[i], GPIO_PIN_RESET);
+		  }
 	  }
-	  else
-	  {
-		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_RESET);
-	  }
-
-	  if( !led_on )
-	  {
-		  colour = (colour + 1) % 3;
-	  }
-	  //led_on = !led_on;
 
 	  // Get ADC value
 	  ADC_ChannelConfTypeDef adc_config = {0};
@@ -148,15 +172,74 @@ int main(void)
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  int val = HAL_ADC_GetValue(&hadc1);
 
-	  char msg[256];
-	  sprintf(msg, "%hu\r\n", val);
-	  HAL_UART_Transmit( &huart6, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY );
+	  static int half_cycle = 0;
+	  int midpoint = 2048;
 
-	  HAL_Delay(100);
+	  if( !half_cycle )
+	  {
+		  if( val > midpoint )
+		  {
+			  half_cycle = 1;
+		  }
+	  }
+	  else if( val < midpoint )
+	  {
+		  colour = (colour + 1) % 3;
+		  half_cycle = 0;
+	  }
+
+	  HAL_Delay(1);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
+
+
+//  while (1)
+//  {
+//	  static int colour_pin[3] = { GPIO_PIN_10, GPIO_PIN_11, GPIO_PIN_8 };
+//	  static int colour = 0;
+//	  static int led_on = 1;
+//
+//	  //led_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET;
+//	  led_on = !led_on;
+//
+//	  if( led_on )
+//	  {
+//		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_SET);
+//	  }
+//	  else
+//	  {
+//		  HAL_GPIO_WritePin(GPIOA, colour_pin[colour], GPIO_PIN_RESET);
+//	  }
+//
+//	  if( !led_on )
+//	  {
+//		  colour = (colour + 1) % 3;
+//	  }
+//	  //led_on = !led_on;
+//
+//	  // Get ADC value
+//	  ADC_ChannelConfTypeDef adc_config = {0};
+//	  adc_config.Channel = ADC_CHANNEL_14;
+//	  adc_config.Rank = 1;
+//	  adc_config.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+//	  HAL_ADC_ConfigChannel(&hadc1, &adc_config);
+//
+//	  HAL_ADC_Start(&hadc1);
+//	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+//	  int val = HAL_ADC_GetValue(&hadc1);
+//
+//	  char msg[256];
+//	  sprintf(msg, "%hu\r\n", val);
+//	  HAL_UART_Transmit( &huart6, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY );
+//
+//	  HAL_Delay(1000);
+//    /* USER CODE END WHILE */
+//
+//    /* USER CODE BEGIN 3 */
+//  }
   /* USER CODE END 3 */
 }
 
