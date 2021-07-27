@@ -96,7 +96,7 @@ void swap_from_adc_to_gpio_interrupt( GPIO_TypeDef* bank, uint32_t pin_mask, IRQ
     HAL_NVIC_EnableIRQ(interrupt);
 }
 
-void swap_from_gpio_to_adc_interrupt( GPIO_TypeDef* bank, uint32_t pin_mask, IRQn_Type interrupt )
+void swap_from_gpio_interrupt_to_adc( GPIO_TypeDef* bank, uint32_t pin_mask, IRQn_Type interrupt )
 {
 	HAL_GPIO_DeInit(bank, pin_mask);
 
@@ -146,8 +146,6 @@ int main(void)
   MX_USART6_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  swap_from_adc_to_gpio_interrupt(GPIOC, GPIO_PIN_4, EXTI4_IRQn);
-
   initialise_sound_engine();
   /* USER CODE END 2 */
 
@@ -170,34 +168,54 @@ int main(void)
 		  }
 	  }
 
-	  /*
-	  // Get ADC value
-	  ADC_ChannelConfTypeDef adc_config = {0};
-	  adc_config.Channel = ADC_CHANNEL_14;
-	  adc_config.Rank = 1;
-	  adc_config.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-	  HAL_ADC_ConfigChannel(&hadc1, &adc_config);
-
-	  HAL_ADC_Start(&hadc1);
-	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	  int val = HAL_ADC_GetValue(&hadc1);
-
-	  static int half_cycle = 0;
-	  int midpoint = 2048;
-
-	  if( !half_cycle )
+	  static int mode = 0;
+	  if( mode == 0 )
 	  {
-		  if( val > midpoint )
+		  // Get ADC value
+		  ADC_ChannelConfTypeDef adc_config = {0};
+		  adc_config.Channel = ADC_CHANNEL_14;
+		  adc_config.Rank = 1;
+		  adc_config.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+		  HAL_ADC_ConfigChannel(&hadc1, &adc_config);
+
+		  HAL_ADC_Start(&hadc1);
+		  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+		  int val = HAL_ADC_GetValue(&hadc1);
+
+		  static int half_cycle = 0;
+		  int midpoint = 2048;
+
+		  if( !half_cycle )
 		  {
-			  half_cycle = 1;
+			  if( val > midpoint )
+			  {
+				  half_cycle = 1;
+			  }
+		  }
+		  else if( val < midpoint )
+		  {
+			  colour_index = (colour_index + 1) % 3;
+			  half_cycle = 0;
 		  }
 	  }
-	  else if( val < midpoint )
+
+	  static int counter = 0;
+
+	  if( ++counter % 5000 == 0 )
 	  {
-		  colour = (colour + 1) % 3;
-		  half_cycle = 0;
+		  if( mode == 0 )
+		  {
+			  mode = 1;
+
+			  swap_from_adc_to_gpio_interrupt(GPIOC, GPIO_PIN_4, EXTI4_IRQn);
+		  }
+		  else
+		  {
+			  mode = 0;
+
+			  swap_from_gpio_interrupt_to_adc(GPIOC, GPIO_PIN_4, EXTI4_IRQn);
+		  }
 	  }
-	  */
 
 	  HAL_Delay(1);
 
